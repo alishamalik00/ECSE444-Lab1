@@ -2,28 +2,52 @@
 #include <math.h>
 #include <stddef.h>
 
-int Kalmanfilter(float *InputArray, float *OutputArray, kalman_state *kstate, int Length) {
-    if ((InputArray == NULL) || (OutputArray == NULL) || (kstate == NULL) || (Length < 0)) {
+/* A function that updates one state using one measurement. */
+typedef void (*kalman_method)(kalman_state *state, float measurement);
+
+/* Shared validation, iteration, and output storage. */
+static int Kalmanfilter_run(float *input, float *output, kalman_state *state, int length, kalman_method method)
+{
+    if ((input == NULL) || (output == NULL) || (state == NULL) || (method == NULL) || (length < 0))
+    {
         return 1;
     }
 
-    for (int i = 0; i < Length; i++)
+    for (int i = 0; i < length; i++)
     {
-        /* Reject invalid inputs or an invalid incoming state. */
-        if (!isfinite(InputArray[i]) || !isfinite(kstate->q) || !isfinite(kstate->r) || !isfinite(kstate->x) || !isfinite(kstate->p)) {
+        if (!isfinite(input[i]) || !isfinite(state->q) || !isfinite(state->r) || !isfinite(state->x) || !isfinite(state->p))
+        {
             return 1;
         }
 
-        /* Call the ARM assembly subroutine. */
-        kalman(kstate, InputArray[i]);
+        /* Calls the selected assembly, C, or CMSIS routine. */
+        method(state, input[i]);
 
-        /* Detect overflow, infinity, or NaN produced by the calculation. */
-        if (!isfinite(kstate->x) || !isfinite(kstate->p) || !isfinite(kstate->k)){
+        if (!isfinite(state->x) || !isfinite(state->p) || !isfinite(state->k))
+        {
             return 1;
         }
 
-        OutputArray[i] = kstate->x;
+        output[i] = state->x;
     }
 
     return 0;
+}
+
+/* Required lab interface: processes data using the assembly routine. */
+int Kalmanfilter(float *InputArray, float *OutputArray, kalman_state *kstate, int Length)
+{
+    return Kalmanfilter_run(InputArray, OutputArray, kstate, Length, kalman);
+}
+
+/* Same interface for the plain-C implementation. */
+int Kalmanfilter_c(float *InputArray, float *OutputArray, kalman_state *kstate, int Length)
+{
+    return Kalmanfilter_run(InputArray, OutputArray, kstate, Length, kalman_c);
+}
+
+/* Same interface for the CMSIS-DSP implementation. */
+int Kalmanfilter_cmsis(float *InputArray, float *OutputArray, kalman_state *kstate, int Length)
+{
+    return Kalmanfilter_run(InputArray, OutputArray, kstate, Length, kalman_cmsis);
 }

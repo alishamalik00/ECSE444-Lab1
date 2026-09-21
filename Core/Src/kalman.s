@@ -14,7 +14,7 @@ kalman:
     /* R0 = address of kalman_state
        S0 = current measurement */
 
-    vldr s1, [r0, #0]      /* S1 = q */
+    vldr s1, [r0, #0]// s1 = q
     vldr s4, [r0, #12]     /* S4 = p */
     vadd.f32 s4, s4, s1    /* p = p + q */
 

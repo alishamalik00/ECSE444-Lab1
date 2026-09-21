@@ -1,8 +1,7 @@
 #include "kalman.h"
 #include "arm_math.h"
-#include <math.h>
-#include <stddef.h>
 
+/* Plain-C update for one measurement. */
 void kalman_c(kalman_state *state, float measurement)
 {
     state->p = state->p + state->q;
@@ -11,6 +10,7 @@ void kalman_c(kalman_state *state, float measurement)
     state->p = (1.0f - state->k) * state->p;
 }
 
+/* CMSIS-DSP update for one measurement. */
 void kalman_cmsis(kalman_state *state, float measurement)
 {
     float predicted_p;
@@ -33,56 +33,4 @@ void kalman_cmsis(kalman_state *state, float measurement)
     arm_mult_f32(&one_minus_k, &predicted_p, &state->p, 1U);
 
     state->x = new_x;
-}
-
-int Kalmanfilter_c(float *InputArray, float *OutputArray, kalman_state *kstate, int Length)
-{
-    if ((InputArray == NULL) || (OutputArray == NULL) || (kstate == NULL) || (Length < 0)) {
-        return 1;
-    }
-
-    for (int i = 0; i < Length; i++) {
-        if (!isfinite(InputArray[i]) || !isfinite(kstate->q) || !isfinite(kstate->r) || !isfinite(kstate->x) || !isfinite(kstate->p))
-        {
-            return 1;
-        }
-
-        kalman_c(kstate, InputArray[i]);
-
-        if (!isfinite(kstate->x) || !isfinite(kstate->p) || !isfinite(kstate->k))
-        {
-            return 1;
-        }
-
-        OutputArray[i] = kstate->x;
-    }
-
-    return 0;
-}
-
-int Kalmanfilter_cmsis(float *InputArray, float *OutputArray, kalman_state *kstate, int Length)
-{
-    if ((InputArray == NULL) || (OutputArray == NULL) || (kstate == NULL) || (Length < 0))
-    {
-        return 1;
-    }
-
-    for (int i = 0; i < Length; i++)
-    {
-        if (!isfinite(InputArray[i]) || !isfinite(kstate->q) || !isfinite(kstate->r) || !isfinite(kstate->x) || !isfinite(kstate->p))
-        {
-            return 1;
-        }
-
-        kalman_cmsis(kstate, InputArray[i]);
-
-        if (!isfinite(kstate->x) || !isfinite(kstate->p) || !isfinite(kstate->k))
-        {
-            return 1;
-        }
-
-        OutputArray[i] = kstate->x;
-    }
-
-    return 0;
 }

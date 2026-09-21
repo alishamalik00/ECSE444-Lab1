@@ -41,6 +41,14 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+/* USER CODE BEGIN PM */
+#define MEASURE_CYCLES(result, ...) do { \
+    uint32_t start_cycles = DWT->CYCCNT; \
+    __VA_ARGS__; \
+    (result) = DWT->CYCCNT - start_cycles; \
+} while (0)
+/* USER CODE END PM */
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -71,39 +79,45 @@ kalman_state test_state =
     .k = 0.0f
 };
 
-float measurements[5] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
-float filtered_output[5];
+float measurements[] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
 
-float difference_output[5];
-float correlation_output[9];
-float convolution_output[9];
-
-volatile float difference_mean;
-volatile float difference_standard_deviation;
-
-float cmsis_difference_output[5];
-float cmsis_correlation_output[9];
-float cmsis_convolution_output[9];
-
-volatile float cmsis_difference_mean;
-volatile float cmsis_difference_standard_deviation;
-
-volatile int kalman_status;
-volatile kalman_state state_history[5];
+enum
+{
+    SAMPLE_COUNT = sizeof(measurements) / sizeof(measurements[0]),
+    FULL_OUTPUT_COUNT = (2 * SAMPLE_COUNT) - 1
+};
 
 kalman_state c_state;
 kalman_state cmsis_state;
 
-float c_filtered_output[5];
-float cmsis_filtered_output[5];
+float filtered_output[SAMPLE_COUNT];
+float c_filtered_output[SAMPLE_COUNT];
+float cmsis_filtered_output[SAMPLE_COUNT];
 
+float difference_output[SAMPLE_COUNT];
+float cmsis_difference_output[SAMPLE_COUNT];
+
+float correlation_output[FULL_OUTPUT_COUNT];
+float cmsis_correlation_output[FULL_OUTPUT_COUNT];
+
+float convolution_output[FULL_OUTPUT_COUNT];
+float cmsis_convolution_output[FULL_OUTPUT_COUNT];
+
+volatile kalman_state state_history[SAMPLE_COUNT];
+
+volatile float difference_mean;
+volatile float difference_standard_deviation;
+volatile float cmsis_difference_mean;
+volatile float cmsis_difference_standard_deviation;
+
+volatile int kalman_status;
 volatile int c_kalman_status;
 volatile int cmsis_kalman_status;
 
+volatile uint32_t cycle_start;
 volatile uint32_t assembly_cycles;
 volatile uint32_t c_cycles;
 volatile uint32_t cmsis_cycles;
-volatile uint32_t cycle_start;
 
 volatile uint32_t c_difference_cycles;
 volatile uint32_t c_statistics_cycles;
@@ -134,6 +148,8 @@ static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_USB_Init(void);
 /* USER CODE BEGIN PFP */
+
+static void run_signal_analysis(void);
 
 /* USER CODE END PFP */
 
@@ -195,52 +211,12 @@ int main(void)
   c_state = test_state;
   cmsis_state = test_state;
 
-  cycle_start = DWT->CYCCNT;
-  kalman_status = Kalmanfilter(measurements, filtered_output, &test_state, 5);
-  assembly_cycles = DWT->CYCCNT - cycle_start;
+  MEASURE_CYCLES(assembly_cycles, kalman_status = Kalmanfilter(measurements, filtered_output, &test_state, SAMPLE_COUNT));
+  MEASURE_CYCLES(c_cycles, c_kalman_status = Kalmanfilter_c(measurements, c_filtered_output, &c_state, SAMPLE_COUNT));
+  MEASURE_CYCLES(cmsis_cycles, cmsis_kalman_status = Kalmanfilter_cmsis(measurements, cmsis_filtered_output, &cmsis_state, SAMPLE_COUNT));
 
-  cycle_start = DWT->CYCCNT;
-  c_kalman_status = Kalmanfilter_c(measurements, c_filtered_output, &c_state, 5);
-  c_cycles = DWT->CYCCNT - cycle_start;
-
-  cycle_start = DWT->CYCCNT;
-  cmsis_kalman_status = Kalmanfilter_cmsis(measurements, cmsis_filtered_output, &cmsis_state, 5);
-  cmsis_cycles = DWT->CYCCNT - cycle_start;
-
-  if ((kalman_status == 0) && (c_kalman_status == 0) && (cmsis_kalman_status == 0))
-  {
-      cycle_start = DWT->CYCCNT;
-      vector_difference(measurements, filtered_output, difference_output, 5);
-      c_difference_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      difference_mean = vector_mean(difference_output, 5);
-      difference_standard_deviation = vector_standard_deviation(difference_output, 5, difference_mean);
-      c_statistics_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      vector_correlation(measurements, filtered_output, correlation_output, 5);
-      c_correlation_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      vector_convolution(measurements, filtered_output, convolution_output, 5);
-      c_convolution_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      cmsis_vector_difference(measurements, filtered_output, cmsis_difference_output, 5);
-      cmsis_difference_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      cmsis_mean_and_standard_deviation(cmsis_difference_output, 5, (float *)&cmsis_difference_mean, (float *)&cmsis_difference_standard_deviation);
-      cmsis_statistics_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      cmsis_vector_correlation(measurements, filtered_output, cmsis_correlation_output, 5);
-      cmsis_correlation_cycles = DWT->CYCCNT - cycle_start;
-
-      cycle_start = DWT->CYCCNT;
-      cmsis_vector_convolution(measurements, filtered_output, cmsis_convolution_output, 5);
-      cmsis_convolution_cycles = DWT->CYCCNT - cycle_start;
+  if ((kalman_status == 0) && (c_kalman_status == 0) && (cmsis_kalman_status == 0)) {
+	  run_signal_analysis();
   }
 
   /* USER CODE END 2 */
@@ -1012,6 +988,30 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+static void run_signal_analysis(void) {
+    float mean_result;
+    float stddev_result;
+
+    MEASURE_CYCLES(c_difference_cycles, vector_difference(measurements, filtered_output, difference_output, SAMPLE_COUNT));
+
+    MEASURE_CYCLES(c_statistics_cycles,
+        difference_mean = vector_mean(difference_output, SAMPLE_COUNT);
+        difference_standard_deviation = vector_standard_deviation(difference_output, SAMPLE_COUNT, difference_mean);
+    );
+
+    MEASURE_CYCLES(c_correlation_cycles, vector_correlation(measurements, filtered_output, correlation_output, SAMPLE_COUNT));
+    MEASURE_CYCLES(c_convolution_cycles, vector_convolution(measurements, filtered_output, convolution_output, SAMPLE_COUNT));
+
+    MEASURE_CYCLES(cmsis_difference_cycles, cmsis_vector_difference(measurements, filtered_output, cmsis_difference_output, SAMPLE_COUNT));
+    MEASURE_CYCLES(cmsis_statistics_cycles, cmsis_mean_and_standard_deviation(cmsis_difference_output, SAMPLE_COUNT, &mean_result, &stddev_result));
+
+    cmsis_difference_mean = mean_result;
+    cmsis_difference_standard_deviation = stddev_result;
+
+    MEASURE_CYCLES(cmsis_correlation_cycles, cmsis_vector_correlation(measurements, filtered_output, cmsis_correlation_output, SAMPLE_COUNT));
+    MEASURE_CYCLES(cmsis_convolution_cycles, cmsis_vector_convolution(measurements, filtered_output, cmsis_convolution_output, SAMPLE_COUNT));
+}
 
 /* USER CODE END 4 */
 
