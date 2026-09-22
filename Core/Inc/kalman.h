@@ -21,4 +21,4 @@ void kalman_cmsis(kalman_state *state, float measurement);
 int Kalmanfilter_c(float *InputArray, float *OutputArray, kalman_state *kstate, int Length);
 int Kalmanfilter_cmsis(float *InputArray, float *OutputArray, kalman_state *kstate, int Length);
 
-#endif /* KALMAN_H_ */
+#endif

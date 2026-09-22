@@ -2,10 +2,8 @@
 #include <math.h>
 #include <stddef.h>
 
-/* A function that updates one state using one measurement. */
 typedef void (*kalman_method)(kalman_state *state, float measurement);
 
-/* Shared validation, iteration, and output storage. */
 static int Kalmanfilter_run(float *input, float *output, kalman_state *state, int length, kalman_method method)
 {
     if ((input == NULL) || (output == NULL) || (state == NULL) || (method == NULL) || (length < 0))

@@ -9,4 +9,4 @@ void cmsis_vector_correlation(const float *input, const float *filtered, float *
 
 void cmsis_vector_convolution(const float *input, const float *filtered, float *output, int length);
 
-#endif /* CMSIS_PROCESSING_H_ */
+#endif

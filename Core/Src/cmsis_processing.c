@@ -32,7 +32,6 @@ void cmsis_vector_correlation(const float *input, const float *filtered, float *
 
     int output_length = (2 * length) - 1;
 
-    /* CMSIS documentation requires a zero-initialized destination. */
     for (int i = 0; i < output_length; i++) {
         output[i] = 0.0f;
     }

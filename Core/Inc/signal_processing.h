@@ -11,4 +11,4 @@ void vector_correlation(const float *input, const float *filtered, float *output
 
 void vector_convolution(const float *input, const float *filtered, float *output, int length);
 
-#endif /* SIGNAL_PROCESSING_H_ */
+#endif

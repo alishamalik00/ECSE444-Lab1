@@ -72,14 +72,14 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 kalman_state test_state =
 {
-    .q = 0.1f,
-    .r = 0.1f,
-    .x = 5.0f,
-    .p = 0.1f,
+    .q = 0.05f,
+    .r = 0.2f,
+    .x = 0.0f,
+    .p = 1.0f,
     .k = 0.0f
 };
 
-float measurements[] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
+float measurements[] = {2.0f, 3.0f, 1.5f, 4.0f, 2.5f};
 
 enum
 {
@@ -204,9 +204,9 @@ int main(void)
   MX_USB_OTG_FS_USB_Init();
   /* USER CODE BEGIN 2 */
 
-  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-  DWT->CYCCNT = 0;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; //enable the trace and debug clock
+  DWT->CYCCNT = 0; //reset the 32-bit CPU cycle counter to zero
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; //enable the cycle counter to start incrementing on every clock cycle
 
   c_state = test_state;
   cmsis_state = test_state;
@@ -1000,7 +1000,7 @@ static void run_signal_analysis(void) {
     // measurement[i] - output[i] for c
     MEASURE_CYCLES(c_difference_cycles, vector_difference(measurements, filtered_output, difference_output, SAMPLE_COUNT));
 
-    // average of of all differences calculated above
+    // average of all differences calculated above
     // standard deviation of all differences for c
     MEASURE_CYCLES(c_statistics_cycles,
         difference_mean = vector_mean(difference_output, SAMPLE_COUNT);

@@ -38,7 +38,6 @@ float vector_standard_deviation(const float *data, int length, float mean)
         squared_sum += deviation * deviation;
     }
 
-    /* Sample standard deviation, matching CMSIS-DSP arm_std_f32. */
     return sqrtf(squared_sum / (float)(length - 1));
 }
 
