@@ -211,6 +211,10 @@ int main(void)
   c_state = test_state;
   cmsis_state = test_state;
 
+  // 1. get initial cycle
+  // 2. run algorithm
+  // 3. calculate total number of cpu cycles = current - initial
+
   MEASURE_CYCLES(assembly_cycles, kalman_status = Kalmanfilter(measurements, filtered_output, &test_state, SAMPLE_COUNT));
   MEASURE_CYCLES(c_cycles, c_kalman_status = Kalmanfilter_c(measurements, c_filtered_output, &c_state, SAMPLE_COUNT));
   MEASURE_CYCLES(cmsis_cycles, cmsis_kalman_status = Kalmanfilter_cmsis(measurements, cmsis_filtered_output, &cmsis_state, SAMPLE_COUNT));
@@ -993,15 +997,20 @@ static void run_signal_analysis(void) {
     float mean_result;
     float stddev_result;
 
+    // measurement[i] - output[i] for c
     MEASURE_CYCLES(c_difference_cycles, vector_difference(measurements, filtered_output, difference_output, SAMPLE_COUNT));
 
+    // average of of all differences calculated above
+    // standard deviation of all differences for c
     MEASURE_CYCLES(c_statistics_cycles,
         difference_mean = vector_mean(difference_output, SAMPLE_COUNT);
         difference_standard_deviation = vector_standard_deviation(difference_output, SAMPLE_COUNT, difference_mean);
     );
 
+    // calculate vector correlation and convolution of c
     MEASURE_CYCLES(c_correlation_cycles, vector_correlation(measurements, filtered_output, correlation_output, SAMPLE_COUNT));
     MEASURE_CYCLES(c_convolution_cycles, vector_convolution(measurements, filtered_output, convolution_output, SAMPLE_COUNT));
+
 
     MEASURE_CYCLES(cmsis_difference_cycles, cmsis_vector_difference(measurements, filtered_output, cmsis_difference_output, SAMPLE_COUNT));
     MEASURE_CYCLES(cmsis_statistics_cycles, cmsis_mean_and_standard_deviation(cmsis_difference_output, SAMPLE_COUNT, &mean_result, &stddev_result));

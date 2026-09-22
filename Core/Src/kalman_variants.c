@@ -1,7 +1,7 @@
 #include "kalman.h"
 #include "arm_math.h"
 
-/* Plain-C update for one measurement. */
+//C update for one measurement
 void kalman_c(kalman_state *state, float measurement)
 {
     state->p = state->p + state->q;
@@ -10,7 +10,7 @@ void kalman_c(kalman_state *state, float measurement)
     state->p = (1.0f - state->k) * state->p;
 }
 
-/* CMSIS-DSP update for one measurement. */
+//CMSIS-DSP update for one measurement
 void kalman_cmsis(kalman_state *state, float measurement)
 {
     float predicted_p;
